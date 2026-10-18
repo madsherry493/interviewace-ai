@@ -1,0 +1,2324 @@
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import "./App.css";
+
+/* =====================================================================
+   SITE SETTINGS: edit these before launch
+   ===================================================================== */
+const SITE = {
+  name: "InterviewAce AI",
+  // Public email address visitors can use. Leave "" until you have a real one.
+  // When set, the Contact form offers an "Open in email app" button.
+  contactEmail: "",
+  // URL of a form service (for example a Formspree endpoint) that accepts a
+  // JSON POST. Leave "" if you have none. With "" the form never claims that
+  // a message was sent.
+  contactEndpoint: "",
+  // Shown on the Privacy Policy and Terms of Use.
+  legalUpdated: "October 18, 2026",
+};
+
+const SEO = {
+  title: "InterviewAce AI | Free Interview Questions, Practice & Career Guides",
+  description:
+    "Free interview practice: role-based questions, sample answers, a self-check practice mode, and practical career guides for job seekers.",
+};
+
+/* =====================================================================
+   Brand: logo geometry (inline SVG only, no image files)
+   Drawn on a 48 x 48 grid. A speech bubble holds an "IA" monogram whose
+   "A" crossbar is a checkmark.
+   ===================================================================== */
+const BRAND = { name: "InterviewAce", accent: "AI", full: "InterviewAce AI" };
+
+const MARK = {
+  bubble:
+    "M15 4H33A11 11 0 0 1 44 15V25A11 11 0 0 1 33 36H24L10 44L15 36A11 11 0 0 1 4 25V15A11 11 0 0 1 15 4Z",
+  i: "M13 11V29",
+  legs: "M20 29L28 11L36 29",
+  check: "M23.4 22.6L27 25.8L32.8 18.6",
+};
+
+/*
+  BrandLogo
+  Props:
+    size      number   Icon size in pixels. The name scales with it. Default 36.
+    showName  boolean  Show "InterviewAce AI" beside the icon. Default true.
+    href      string   Makes the logo a link. Pass "" for a plain, non-link logo.
+    className string   Optional extra class.
+*/
+function BrandLogo({ size = 36, showName = true, href = "#home", className = "" }) {
+  const uid = useId().replace(/:/g, "");
+  const gradId = `brand-grad-${uid}`;
+  const sheenId = `brand-sheen-${uid}`;
+  const titleId = `brand-title-${uid}`;
+  // The icon is decorative when the visible name or a link label already
+  // describes it. Otherwise it gets its own accessible name.
+  const decorative = showName || Boolean(href);
+
+  const mark = (
+    <svg
+      className="brand-mark"
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      focusable="false"
+      role={decorative ? undefined : "img"}
+      aria-hidden={decorative ? "true" : undefined}
+      aria-labelledby={decorative ? undefined : titleId}
+    >
+      {!decorative && <title id={titleId}>{BRAND.full} logo</title>}
+      <defs>
+        <linearGradient id={gradId} x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#9b6bff" />
+          <stop offset="0.55" stopColor="#5b6cf6" />
+          <stop offset="1" stopColor="#2f8cff" />
+        </linearGradient>
+        <linearGradient id={sheenId} x1="8" y1="4" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.7" />
+          <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.12" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0.3" />
+        </linearGradient>
+      </defs>
+      <path d={MARK.bubble} fill={`url(#${gradId})`} />
+      <path d={MARK.bubble} stroke={`url(#${sheenId})`} strokeWidth="1.2" strokeLinejoin="round" />
+      <g strokeLinecap="round" strokeLinejoin="round">
+        <path d={MARK.i} stroke="#ffffff" strokeWidth="3.4" />
+        <path d={MARK.legs} stroke="#ffffff" strokeWidth="3.4" />
+        <path d={MARK.check} stroke="#a5f3fc" strokeWidth="3.2" />
+      </g>
+    </svg>
+  );
+
+  const content = (
+    <>
+      {mark}
+      {showName && (
+        <span className="brand-name">
+          {BRAND.name}
+          <span className="brand-ai">
+            <span className="brand-ai-text">{BRAND.accent}</span>
+          </span>
+        </span>
+      )}
+    </>
+  );
+
+  const classes = `brand ${className}`.trim();
+  const style = { "--brand-size": `${size}px` };
+
+  if (href) {
+    return (
+      <a href={href} className={classes} style={style} aria-label={`${BRAND.full} home`}>
+        {content}
+      </a>
+    );
+  }
+  return (
+    <span className={classes} style={style}>
+      {content}
+    </span>
+  );
+}
+
+/* Sets the browser tab icon from the same geometry, as an inline SVG data URI */
+function setFavicon() {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">` +
+    `<defs><linearGradient id="g" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0" stop-color="#9b6bff"/><stop offset="0.55" stop-color="#5b6cf6"/>` +
+    `<stop offset="1" stop-color="#2f8cff"/></linearGradient></defs>` +
+    `<path d="${MARK.bubble}" fill="url(#g)"/>` +
+    `<g fill="none" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path d="${MARK.i}" stroke="#ffffff" stroke-width="3.4"/>` +
+    `<path d="${MARK.legs}" stroke="#ffffff" stroke-width="3.4"/>` +
+    `<path d="${MARK.check}" stroke="#a5f3fc" stroke-width="3.2"/></g></svg>`;
+  let link = document.head.querySelector('link[rel~="icon"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "icon";
+    document.head.appendChild(link);
+  }
+  link.type = "image/svg+xml";
+  link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+/* =====================================================================
+   Inline icons (no packages, no image files)
+   ===================================================================== */
+const ICONS = {
+  arrow: ["M5 12h14", "M13 6l6 6-6 6"],
+  check: ["M20 6L9 17l-5-5"],
+  chevron: ["M6 9l6 6 6-6"],
+  clock: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M12 7v5l3 2"],
+  menu: ["M4 6h16", "M4 12h16", "M4 18h16"],
+  close: ["M18 6L6 18", "M6 6l12 12"],
+  target: [
+    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",
+    "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z",
+    "M12 12h.01",
+  ],
+  message: ["M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z", "M8 9h8", "M8 13h5"],
+  mic: ["M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z", "M19 10v2a7 7 0 0 1-14 0v-2", "M12 19v3"],
+  book: ["M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z", "M6.5 17H20v4H6.5A2.5 2.5 0 0 1 4 19.5"],
+  code: ["M16 18l6-6-6-6", "M8 6l-6 6 6 6"],
+  headphones: [
+    "M3 14v-2a9 9 0 0 1 18 0v2",
+    "M21 19a2 2 0 0 1-2 2h-1v-7h3z",
+    "M3 19a2 2 0 0 0 2 2h1v-7H3z",
+  ],
+  megaphone: ["M3 11v2l13 5V6z", "M16 8a4 4 0 0 1 0 8", "M7 14v4a2 2 0 0 0 2 2"],
+  chart: ["M3 3v18h18", "M8 17v-5", "M13 17V8", "M18 17v-8"],
+  clipboard: ["M9 3h6v4H9z", "M7 5H5v16h14V5h-2", "M9 12h6", "M9 16h4"],
+  refresh: ["M21 12a9 9 0 1 1-3-6.7", "M21 4v5h-5"],
+  eye: ["M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z", "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
+  alert: [
+    "M12 9v4",
+    "M12 17h.01",
+    "M10.3 3.9L2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z",
+  ],
+  info: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M12 11v5", "M12 8h.01"],
+  mail: ["M3 5h18v14H3z", "M3 7l9 6 9-6"],
+  copy: ["M9 9h11v11H9z", "M5 15V5a1 1 0 0 1 1-1h10"],
+};
+
+function Icon({ name, size = 20 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {ICONS[name].map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+    </svg>
+  );
+}
+
+/* =====================================================================
+   Content: navigation, features, interview questions
+   Keywords use "label|alternative|alternative" so the review can match
+   a few common wordings of the same idea.
+   ===================================================================== */
+const NAV_LINKS = [
+  { id: "home", label: "Home" },
+  { id: "questions", label: "Interview Questions" },
+  { id: "practice", label: "Practice" },
+  { id: "guides", label: "Career Guides" },
+  { id: "about", label: "About" },
+  { id: "contact", label: "Contact" },
+];
+
+const FEATURES = [
+  {
+    icon: "target",
+    title: "Job-Specific Questions",
+    text: "Browse questions grouped by role, so you prepare for the interview you actually have.",
+    href: "#questions",
+    cta: "Browse questions",
+  },
+  {
+    icon: "message",
+    title: "Answer Examples",
+    text: "Open any question to see a sample answer, then rewrite it in your own words and experience.",
+    href: "#questions",
+    cta: "See sample answers",
+  },
+  {
+    icon: "mic",
+    title: "Mock Interview Practice",
+    text: "Write your answer, then get a simple rule-based checklist review. No account needed.",
+    href: "#practice",
+    cta: "Start practicing",
+  },
+  {
+    icon: "book",
+    title: "Career Guides",
+    text: "Practical guides for preparing, answering tough questions, and following up.",
+    href: "#guides",
+    cta: "Read the guides",
+  },
+];
+
+const CATEGORIES = [
+  {
+    id: "software",
+    name: "Software Engineer",
+    icon: "code",
+    blurb: "Technical depth, collaboration, and how you solve problems.",
+    questions: [
+      {
+        q: "Describe a difficult bug you fixed. How did you find the cause?",
+        tip: "Walk through your steps in order: reproduce, isolate, fix, prevent. Name the tools you used.",
+        keywords: ["reproduce|reproduc", "logs|logging", "root cause|cause", "test|testing", "fix|fixed"],
+        answer:
+          "Last spring our checkout page failed for about 2% of users, and nobody could reproduce it. I replayed production requests in a test environment and noticed the errors only happened when two requests updated the same cart at once. The root cause was a race condition, so I added a database lock and wrote a regression test. Errors dropped to zero, and I documented the steps in our team's debugging guide.",
+      },
+      {
+        q: "How do you decide between a quick solution and a clean one?",
+        tip: "Show that you weigh deadlines, risk, and long-term maintenance. Give one real example of each choice.",
+        keywords: ["deadline|deadlines", "risk", "maintain|maintenance", "technical debt|debt", "trade-off|tradeoff|trade off"],
+        answer:
+          "I start by asking how risky the change is and how long the code will live. For a one-off script before a deadline, I choose the quick option and note it. For code the team will maintain for years, I take extra time to keep it clean. Last quarter I shipped a fast fix for a demo, logged the technical debt in our backlog, and refactored it two weeks later, so we met the deadline without leaving a mess.",
+      },
+      {
+        q: "Tell me about a time you disagreed with a teammate on a technical decision.",
+        tip: "Focus on how you listened, shared evidence, and reached a decision, not on who was right.",
+        keywords: ["listen|listened", "data|evidence", "compromise|agreed", "decision|decided", "team"],
+        answer:
+          "On a recent project, a teammate wanted to build our own queue while I preferred a managed service. I listened to his concerns about cost and control, then suggested we compare both using a small prototype and real numbers. The data showed the managed service saved about two weeks of work. He agreed, and we kept his monitoring idea as a compromise. We made the decision together, and our working relationship stayed strong.",
+      },
+      {
+        q: "How do you make sure your code is reliable before releasing it?",
+        tip: "Mention tests, code review, and what you watch after release. Include a real example if you can.",
+        keywords: ["tests|testing", "code review|review", "edge cases|edge case", "monitor|monitoring", "deploy|release"],
+        answer:
+          "Before I release code, I write unit tests for the main paths and edge cases, then ask a teammate for a code review. I run the full test suite in a staging environment, and I deploy behind a feature flag when the change is risky. After release I monitor error rates and logs for the first day. This process helped me ship my last three features with no urgent rollbacks.",
+      },
+      {
+        q: "Tell me about a time you had to learn a new technology quickly.",
+        tip: "Describe your learning method, how you applied it, and what you delivered.",
+        keywords: ["documentation|docs", "prototype|small project", "practice|practiced", "feedback|mentor", "learn|learned"],
+        answer:
+          "When my team moved to a new framework, I had two weeks to become productive. I read the official documentation, built a small prototype of one real feature, and practiced by rewriting an old component. I asked a senior teammate for feedback on my pull requests each day. By the end of the second week, I shipped my first production feature and then wrote a short guide for the next person who joined.",
+      },
+    ],
+  },
+  {
+    id: "service",
+    name: "Customer Service",
+    icon: "headphones",
+    blurb: "Empathy, patience, and clear communication under pressure.",
+    questions: [
+      {
+        q: "How do you handle a customer who is angry and upset?",
+        tip: "Acknowledge the feeling, clarify the problem, offer a next step, and confirm the customer is satisfied.",
+        keywords: ["listen|listened", "apology|apolog|sorry", "empathy|understand|understood", "solution|resolve|resolved", "follow up|follow-up|followed up"],
+        answer:
+          "I stay calm and let the customer finish speaking without interrupting. Then I apologize for the experience, repeat the problem back to confirm I understand, and explain what I can do to fix it. Recently a customer was charged twice. I processed the refund right away, showed him the confirmation, and followed up two days later to make sure it arrived. He thanked me and kept his account.",
+      },
+      {
+        q: "Tell me about a time you went above and beyond for a customer.",
+        tip: "Pick a specific case with a measurable result, such as a saved account or a positive review.",
+        keywords: ["customer", "extra|beyond|additional", "result|outcome", "feedback|review", "follow up|follow-up|followed up"],
+        answer:
+          "A customer once called because a gift would not arrive before a birthday. Beyond checking the order, I contacted the warehouse, found a faster shipping option, and covered the extra cost with my manager's approval. The package arrived a day early. The customer left a five-star review mentioning my name, and I followed up the next week to make sure the recipient was happy.",
+      },
+      {
+        q: "What would you do if you did not know the answer to a customer's question?",
+        tip: "Be honest, explain how you find answers, and describe how you follow up.",
+        keywords: ["honest|honesty|transparent", "research|look up|find out", "escalate|escalated|colleague|supervisor", "follow up|follow-up|followed up", "knowledge base|documentation|team"],
+        answer:
+          "I'm honest that I don't know yet, and I tell the customer I'll find out. I check our knowledge base first, then ask a teammate or supervisor if needed. I give the customer a clear time for my follow-up, such as within one hour, and I keep that promise. Afterward I add the answer to our shared notes so the team can help the next customer faster.",
+      },
+      {
+        q: "How do you stay organized and calm when you have many customers waiting?",
+        tip: "Describe how you prioritize, keep quality high, and manage stress with a real example.",
+        keywords: ["prioritize|priority|prioritise", "calm", "organized|organised|queue", "time", "quality"],
+        answer:
+          "When the queue is full, I prioritize by urgency, handling account lockouts and billing errors before general questions. I stay calm, keep my notes organized, and use saved replies for common issues without losing a personal tone. During our busiest week last year I handled about 60 tickets a day while keeping my satisfaction score above 95%, because I focused on quality for each customer.",
+      },
+      {
+        q: "How would you respond if company policy prevents you from giving a customer what they want?",
+        tip: "Show empathy, explain the policy clearly, offer alternatives, and know when to escalate.",
+        keywords: ["policy", "explain|explained", "alternative|option|options", "empathy|understand|understood", "escalate|supervisor|manager"],
+        answer:
+          "I begin by showing I understand why the customer is frustrated. Then I explain the policy in plain language and why it exists. Next I look for an alternative within the rules, such as store credit or an exchange. If the situation still needs an exception, I escalate it to a supervisor with the full details so the customer doesn't have to repeat themselves. Most customers appreciate honesty and a clear next step.",
+      },
+    ],
+  },
+  {
+    id: "marketing",
+    name: "Marketing",
+    icon: "megaphone",
+    blurb: "Creativity backed by results, audience insight, and testing.",
+    questions: [
+      {
+        q: "Describe a campaign you are proud of. What was your role?",
+        tip: "State the goal, your part, and the result, with numbers if you have them.",
+        keywords: ["goal|objective", "audience", "budget", "metric|metrics|kpi", "result|results"],
+        answer:
+          "My proudest campaign was a spring email series for an online retailer. The goal was to bring back lapsed customers within three months, with a small budget. I segmented our audience by past purchases, wrote three versions of the message, and tested subject lines. The campaign reactivated 9% of the list and produced about 4x return on spend. I tracked open rate, click rate, and revenue each week.",
+      },
+      {
+        q: "How do you decide which marketing channels to focus on?",
+        tip: "Explain how you use audience data, budget, and past results to prioritize and test.",
+        keywords: ["audience", "data|analytics", "budget", "test|testing|experiment", "channel|channels"],
+        answer:
+          "I start with the audience: where they spend time and how they prefer to hear from brands. Then I look at past analytics and our budget to choose two or three channels instead of spreading thin. I run small experiments on each, for example a two-week test of paid social versus email. The channels with the best cost per conversion get more budget, and I review the data monthly.",
+      },
+      {
+        q: "How do you measure whether a campaign worked?",
+        tip: "Tie each metric to the goal: reach for awareness, conversion rate for sales, retention for loyalty.",
+        keywords: ["metric|metrics|kpi", "conversion|conversions", "goal|objective", "analytics|dashboard", "roi|return on"],
+        answer:
+          "I connect metrics to the goal. For awareness I track reach and impressions, for sales I track conversion rate and cost per acquisition, and for loyalty I track repeat purchases. I set the targets before launch, use analytics dashboards to follow progress weekly, and calculate return on investment at the end. That way we can say clearly whether a campaign met its goal and why.",
+      },
+      {
+        q: "Tell me about a campaign that did not perform as expected. What did you do?",
+        tip: "Be honest about the problem, show how you used data to adjust, and share what you learned.",
+        keywords: ["data|analytics", "learn|learned", "adjust|changed|pivot", "test|testing", "result|results"],
+        answer:
+          "One paid social campaign I ran had half the click rate we expected. I looked at the data and found that our images performed well with one audience but not another. I paused the weakest ads, tested new headlines, and adjusted the targeting. Within two weeks the click rate improved by 40%. I learned to run a small test first, and I now share results with the team either way.",
+      },
+      {
+        q: "How do you stay up to date with marketing trends and tools?",
+        tip: "Name real habits and describe a time you applied something new.",
+        keywords: ["trend|trends", "newsletter|blog|podcast", "experiment|tested|test", "community|network", "audience"],
+        answer:
+          "I follow a few marketing newsletters and podcasts and spend about 30 minutes every Friday reading what's new. I'm also part of an online marketing community where people share real results. When I see a promising trend, I run a small experiment before recommending it. For instance, I tested short video on a small budget last year and learned it worked well for our audience, so we scaled it.",
+      },
+    ],
+  },
+  {
+    id: "data",
+    name: "Data Analyst",
+    icon: "chart",
+    blurb: "Accuracy, curiosity, and turning numbers into decisions.",
+    questions: [
+      {
+        q: "Walk me through an analysis that changed a decision.",
+        tip: "Cover the question, the data, your method, and what the team did differently afterward.",
+        keywords: ["question|business question", "data|dataset", "insight|finding|found", "recommend|recommendation|recommended", "impact|result|decision"],
+        answer:
+          "Our sales manager asked why renewals were falling. I pulled twelve months of customer data and found that accounts without a training session in the first month renewed 25% less often. I built a simple chart for the insight and recommended adding onboarding calls. The team piloted it for a quarter, and the renewal rate rose by 8 points, so the impact led to a permanent change in the process.",
+      },
+      {
+        q: "How do you handle messy or missing data?",
+        tip: "Describe the checks you run, how you decide what to fill or remove, and how you document it.",
+        keywords: ["clean|cleaned|cleaning", "missing", "validate|validated|validation|check", "document|documented", "duplicate|duplicates"],
+        answer:
+          "First I look for problems: missing values, duplicates, and strange outliers. Then I decide how to handle each. I might remove duplicates, fill gaps only when there's a sound reason, and flag anything uncertain. I validate the cleaned data against the original totals and document every step in a short log. Once, this process caught a duplicated import that would have overstated revenue by 6%.",
+      },
+      {
+        q: "How would you explain a complex result to a non-technical manager?",
+        tip: "Lead with the conclusion, use one simple chart, and avoid jargon.",
+        keywords: ["simple|plain", "visual|chart|graph", "conclusion|takeaway|key point", "audience|stakeholder|manager", "jargon"],
+        answer:
+          "I start with the conclusion in one plain sentence, because managers want the takeaway first. Then I show one simple chart that supports it and avoid jargon like standard deviation unless asked. I tailor the explanation to the audience, using their own business terms. After presenting, I ask what questions they have and offer a one-page summary they can share.",
+      },
+      {
+        q: "Which tools do you use for analysis, and why?",
+        tip: "Name the tools you really know and match each one to a task.",
+        keywords: ["sql", "excel|spreadsheet", "python|pandas", "dashboard|tableau|power bi", "visual|chart"],
+        answer:
+          "I use SQL to pull and join data from databases, because it's fast and repeatable. For quick checks and small datasets, I use Excel. For deeper analysis, such as cleaning large files or running statistics, I use Python with pandas. I share results through dashboards so stakeholders can explore them without waiting for me. I pick the tool that is simplest for the task.",
+      },
+      {
+        q: "How do you check that your analysis is accurate?",
+        tip: "Describe concrete checks, such as comparing to trusted totals, peer review, and written assumptions.",
+        keywords: ["validate|validated|validation", "cross-check|cross check|compare|compared", "sample|spot check", "review|peer review|colleague", "assumption|assumptions"],
+        answer:
+          "I validate results in several steps. I cross-check totals against a trusted source, such as the finance report. I spot check a sample of rows by hand, and I write down my assumptions so others can challenge them. Before sharing, I ask a colleague to review my queries. This habit helped me catch a filter mistake last year before it reached leadership.",
+      },
+    ],
+  },
+  {
+    id: "pm",
+    name: "Project Manager",
+    icon: "clipboard",
+    blurb: "Planning, prioritizing, and keeping people aligned.",
+    questions: [
+      {
+        q: "Tell me about a project that was falling behind. What did you do?",
+        tip: "Show how you found the cause, reset expectations early, and adjusted scope or resources.",
+        keywords: ["cause|root cause", "scope", "stakeholder|stakeholders", "plan|schedule|timeline", "communicate|communicated|update"],
+        answer:
+          "On a website redesign, we were three weeks behind. I first identified the root cause: the design approvals were taking too long. I met with stakeholders, agreed to reduce the scope by moving two low-priority pages to phase two, and set a clear approval schedule. I communicated the new plan in a short update to everyone. We launched only four days late and delivered all the key features.",
+      },
+      {
+        q: "How do you prioritize when everything seems urgent?",
+        tip: "Describe a clear method, such as impact versus effort, and how you involve stakeholders.",
+        keywords: ["priority|prioritize|prioritise", "impact", "deadline|deadlines", "stakeholder|stakeholders", "trade-off|tradeoff|trade off"],
+        answer:
+          "I use impact and deadline as my main filters. I list every request, estimate the effort, and ask which ones affect the most customers or carry a hard date. I then share the ranked priority list with stakeholders and explain the trade-offs, so they can agree on what waits. When two leaders wanted different priorities, this approach helped us decide in a single meeting.",
+      },
+      {
+        q: "How do you keep stakeholders informed about a project?",
+        tip: "Mention how often you update, in what format, and how you share bad news early.",
+        keywords: ["update|updates", "report|status", "meeting|stand-up|standup", "risk|risks", "transparent|transparency|early"],
+        answer:
+          "I give regular updates in a format people can scan: a short weekly status report with progress, next steps, and risks. I hold a brief stand-up with the team and a monthly review meeting with leadership. If something goes wrong, I share it early with a proposed solution. Being transparent has built trust, and my stakeholders rarely ask for ad-hoc status checks.",
+      },
+      {
+        q: "Tell me about a time you resolved a conflict within your team.",
+        tip: "Focus on listening, shared goals, and the agreement you reached, not on blame.",
+        keywords: ["listen|listened", "goal|goals", "understand|understood|perspective", "agree|agreed|resolution|resolved", "team"],
+        answer:
+          "When two team members disagreed about task ownership, I met with each of them separately and listened to their views. Then I brought them together to focus on the project goals instead of positions. We clarified roles, agreed on a shared checklist, and set a check-in date. The resolution took one meeting, and the team finished the project on schedule.",
+      },
+      {
+        q: "How do you identify and manage risks on a project?",
+        tip: "Explain how you list risks, plan responses, and keep tracking them.",
+        keywords: ["risk|risks", "mitigate|mitigation", "contingency|backup", "monitor|monitored|track", "plan|planned"],
+        answer:
+          "At the start of each project, I list possible risks and rate them by likelihood and impact. For the top risks, I plan mitigation steps and a contingency, like a backup vendor. I monitor them in weekly meetings and update the log. On my last project, a supplier delay was caught early, and our backup plan kept us on track.",
+      },
+    ],
+  },
+];
+
+const TOTAL_QUESTIONS = CATEGORIES.reduce((n, c) => n + c.questions.length, 0);
+
+const HERO_QUESTIONS = [
+  { q: "Tell me about yourself", tag: "Behavioral" },
+  { q: "Why do you want this role?", tag: "Motivation" },
+  { q: "Describe a time you handled conflict", tag: "Behavioral" },
+];
+
+/* =====================================================================
+   Content: career guides (original writing)
+   Section fields: heading, text[], list[], ordered, quote
+   ===================================================================== */
+const GUIDE_LIBRARY = [
+  {
+    id: "week-plan",
+    tab: "7-Day Prep Plan",
+    title: "A 7-day interview preparation plan",
+    summary:
+      "A simple schedule that turns a nervous week into steady progress, with one clear job for each stage.",
+    sections: [
+      {
+        heading: "Days 7 to 5: Understand the role",
+        text: [
+          "Start by reading the job posting slowly, twice. The first read tells you what the job is. The second tells you what the employer is most worried about getting right.",
+        ],
+        list: [
+          "Highlight the three to five skills or duties that appear most often.",
+          "Next to each one, write a real example from work, school, volunteering, or a personal project.",
+          "Note any requirement you do not meet yet, and decide how you will talk about it honestly.",
+        ],
+      },
+      {
+        heading: "Days 4 to 3: Build your evidence",
+        text: [
+          "Choose four to six short stories from your experience that you can adapt to many questions. The STAR guide in this section shows how to shape them.",
+          "Then use the Interview Questions section to find questions for your role, and write rough answers to the five you find hardest.",
+        ],
+      },
+      {
+        heading: "Days 2 to 1: Practise out loud",
+        text: [
+          "Reading an answer silently and saying it aloud are very different skills. Use Practice Mode to write a draft, then say it aloud until it sounds like you talking rather than reading.",
+        ],
+        list: [
+          "Aim for 30 to 90 seconds per answer.",
+          "Ask a friend to ask the questions in a different order.",
+          "Write down two or three questions to ask the interviewer.",
+          "Plan your route, login details, or camera setup.",
+        ],
+      },
+      {
+        heading: "Interview day",
+        list: [
+          "Eat something and drink water.",
+          "Arrive or log in about ten minutes early.",
+          "Bring a notebook, a pen, and spare copies of your resume if the interview is in person.",
+          "Take a slow breath before each answer. A short pause looks calm, not unsure.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "star-stories",
+    tab: "STAR Stories",
+    title: "Build a story bank with the STAR method",
+    summary:
+      "Prepare a handful of true stories once, then adapt them to almost any behavioral question.",
+    sections: [
+      {
+        heading: "Why stories matter",
+        text: [
+          "Many interview questions begin with 'Tell me about a time when...'. A small bank of well-prepared stories lets you answer these with confidence, without memorizing dozens of scripts.",
+        ],
+      },
+      {
+        heading: "The four parts",
+        ordered: true,
+        list: [
+          "Situation: set the scene in one or two sentences. Where were you, and what was happening?",
+          "Task: explain your responsibility or the goal you needed to reach.",
+          "Action: describe the specific steps you took. This is the longest part, and it should say 'I', not only 'we'.",
+          "Result: share what happened, with a number or clear outcome if possible, and what you learned.",
+        ],
+      },
+      {
+        heading: "Pick stories that cover common themes",
+        text: [
+          "Aim for one story each for: solving a problem, working in a team, handling a disagreement, making a mistake and fixing it, meeting a tight deadline, and learning something new. One story can often answer more than one question.",
+        ],
+      },
+      {
+        heading: "No work experience yet?",
+        text: [
+          "School projects, volunteering, sports teams, community work, and personal projects all count. Interviewers care about how you think and act, not where the story took place.",
+        ],
+      },
+      {
+        heading: "Common mistakes",
+        list: [
+          "Spending most of the time on the situation and rushing the action.",
+          "Saying 'we' for everything, so the interviewer cannot tell what you did.",
+          "Ending without a result or a lesson.",
+          "Choosing a story that does not match the skill the question is about.",
+        ],
+      },
+      {
+        heading: "A short example (made up for illustration)",
+        quote:
+          "Situation: Our team's weekly report took six hours to build by hand. Task: I wanted to cut that time so we could spend it on analysis. Action: I built a spreadsheet template with formulas, tested it against two old reports, and showed two teammates how to use it. Result: The report now takes about one hour, and the team uses the saved time to review the numbers more carefully.",
+      },
+    ],
+  },
+  {
+    id: "company-research",
+    tab: "Company Research",
+    title: "Research a company in 30 minutes",
+    summary:
+      "You do not need hours of research. You need enough to explain why this company and this role make sense for you.",
+    sections: [
+      {
+        heading: "Minutes 1 to 10: The basics",
+        list: [
+          "Read the company's own website: what it sells, who its customers are, and how it describes its values.",
+          "Look at the product or service the way a customer would, if you can.",
+          "Read the job posting again with the company's goals in mind.",
+        ],
+      },
+      {
+        heading: "Minutes 11 to 20: What is happening now",
+        list: [
+          "Search for recent news, product launches, or announcements.",
+          "Check the careers page for related roles. It shows where the team is growing.",
+          "Note any challenge the company may be facing, such as a new market or a new competitor.",
+        ],
+      },
+      {
+        heading: "Minutes 21 to 25: The people",
+        text: [
+          "If you know your interviewers' names, read their public professional profiles. Look for shared interests or background, but keep it professional. Do not bring up personal details that are unrelated to work.",
+        ],
+      },
+      {
+        heading: "Minutes 26 to 30: Turn notes into answers",
+        text: [
+          "Write three notes: one thing you admire about the company, one way your skills match their needs, and one question you still have. These feed straight into your answer to 'Why do you want to work here?' and into your own questions at the end.",
+        ],
+      },
+      {
+        heading: "A simple answer shape",
+        quote:
+          "I'm interested in [company] because [specific thing you noticed]. In my last role I [relevant experience], and I'd like to use that to help with [their goal].",
+      },
+    ],
+  },
+  {
+    id: "tough-questions",
+    tab: "Tough Questions",
+    title: "Answer tough questions honestly",
+    summary:
+      "Hard questions usually test honesty, self-awareness, and how you handle pressure. A calm, truthful answer beats a polished one that sounds rehearsed.",
+    sections: [
+      {
+        heading: "What is your biggest weakness?",
+        text: [
+          "Choose a real weakness that is not essential for the job, explain what you are doing about it, and share a little progress.",
+          "Example wording:",
+        ],
+        quote:
+          "I used to take on too many tasks without asking for help. Now I list my tasks every Monday, flag what is at risk, and ask early. It has helped me meet my last three deadlines.",
+      },
+      {
+        heading: "Why did you leave your last job?",
+        list: [
+          "Keep it factual and short.",
+          "Do not criticize your former employer or colleagues.",
+          "Point toward what you want next, such as more responsibility or a new skill area.",
+        ],
+      },
+      {
+        heading: "How do I explain a gap in my resume?",
+        text: [
+          "Be brief and honest. Say what the time was for, such as caring for family, health, study, or a job search, and mention anything you learned or kept up. Then move the conversation to why you are ready now.",
+        ],
+      },
+      {
+        heading: "What if I do not know the answer?",
+        text: [
+          "It is fine to say, 'I have not done that before. Here is how I would approach it.' Thinking out loud shows how you reason, which is often what the interviewer wants to see.",
+        ],
+      },
+      {
+        heading: "Questions that feel too personal",
+        text: [
+          "Employers should focus on your ability to do the job. Rules about what they may ask differ by country and region, so check the rules where you live. If a question feels unrelated to the role, you can politely steer back by sharing what is relevant to the job.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "video-interview",
+    tab: "Video Interviews",
+    title: "Video interview checklist",
+    summary:
+      "Most video interview problems are about setup, not skill. Handle the basics early so you can focus on your answers.",
+    sections: [
+      {
+        heading: "The day before",
+        list: [
+          "Test your camera, microphone, and the meeting link on the platform the employer uses.",
+          "Charge your device and close the apps you do not need.",
+          "Find a quiet space and tell the people you live with when you will be on a call.",
+          "Keep the invitation and the interviewer's contact details easy to find.",
+        ],
+      },
+      {
+        heading: "Set up your space",
+        list: [
+          "Place light in front of you, such as a window or a lamp, not behind you.",
+          "Put the camera at eye level, using books or a stand if needed.",
+          "Choose a plain, tidy background.",
+          "Dress as you would for an in-person interview.",
+        ],
+      },
+      {
+        heading: "During the call",
+        list: [
+          "Look at the camera when you speak, and at the screen when you listen.",
+          "Pause a second before answering to avoid talking over the other person.",
+          "Keep a few bullet points nearby, but do not read from a script.",
+          "Silence notifications on your phone and computer.",
+        ],
+      },
+      {
+        heading: "Have a backup plan",
+        text: [
+          "Keep a phone number for the interviewer or recruiter. If your connection drops, rejoin quickly and send a short message. A phone hotspot can be a useful backup for your internet.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "follow-up",
+    tab: "Questions & Follow-up",
+    title: "Ask good questions and follow up",
+    summary:
+      "The end of the interview and the day after are chances to show interest and professionalism.",
+    sections: [
+      {
+        heading: "Questions worth asking",
+        list: [
+          "What does success look like in this role after the first three months?",
+          "What are the biggest challenges the team is facing right now?",
+          "How does the team work together day to day?",
+          "How will my work be reviewed, and how often?",
+          "What are the next steps in the process, and when can I expect to hear back?",
+        ],
+      },
+      {
+        heading: "Questions to handle with care",
+        text: [
+          "Avoid asking only about pay, time off, or perks in a first conversation. They are fair topics, but raise them when the employer does or once the process is further along. If you are asked about salary expectations, look up typical ranges for the role and location beforehand, because they vary widely.",
+        ],
+      },
+      {
+        heading: "Send a thank-you message within a day",
+        text: [
+          "A short message shows you are organized and interested. Mention one specific thing you discussed.",
+        ],
+        quote:
+          "Hello [Name], thank you for speaking with me today about the [role] position. I enjoyed hearing about [specific topic], and it made me even more interested in the role. Please let me know if I can share anything else. I look forward to hearing about next steps. Best regards, [Your name]",
+      },
+      {
+        heading: "If you do not hear back",
+        text: [
+          "Wait until the date the employer gave you. If that date passes, send one polite message asking whether there is an update. Whatever the outcome, write down the questions you were asked and what you would improve. That makes the next interview easier.",
+        ],
+      },
+    ],
+  },
+];
+
+const QUICK_CHECKLISTS = [
+  {
+    title: "Before the interview",
+    points: [
+      "Re-read the job description and highlight the top three skills it asks for.",
+      "Prepare two or three stories from your experience that match those skills.",
+      "Research the company's product, customers, and recent news.",
+      "Prepare two questions to ask the interviewer.",
+    ],
+  },
+  {
+    title: "During the interview",
+    points: [
+      "Answer the question directly first, then add detail.",
+      "Use the STAR method for stories: Situation, Task, Action, Result.",
+      "It is fine to pause for a moment before answering.",
+      "Ask for clarification if a question is unclear.",
+    ],
+  },
+  {
+    title: "After the interview",
+    points: [
+      "Send a short thank-you message within 24 hours.",
+      "Mention one specific topic from the conversation.",
+      "Write down the questions you were asked while they are fresh.",
+      "Note what to improve before the next interview.",
+    ],
+  },
+];
+
+/* =====================================================================
+   Content: Privacy Policy and Terms of Use (edit freely)
+   ===================================================================== */
+const CONTACT_SENTENCE = SITE.contactEmail
+  ? `email us at ${SITE.contactEmail} or use the contact form`
+  : "use the contact form on this website";
+
+const PRIVACY = [
+  {
+    heading: "Summary",
+    text: [
+      `${SITE.name} is a website for interview practice. There are no user accounts, and we do not ask you to register or log in.`,
+    ],
+  },
+  {
+    heading: "What you type in Practice Mode",
+    text: [
+      "The answers you write in Practice Mode are kept in your browser's memory on your own device while you use the page. The website does not send them to a server, and it does not save them. When you refresh or close the page, they are cleared. The practice review also runs on your device.",
+    ],
+  },
+  {
+    heading: "The contact form",
+    text: [
+      "If the contact form is connected to a form or email service, the name, email address, topic, and message you submit are sent to that service and delivered to us so that we can read and reply to you. We use this information only to respond to you. Please do not include passwords, financial details, or other sensitive information.",
+      "If the contact form is not connected, nothing you type into it is sent anywhere.",
+    ],
+  },
+  {
+    heading: "Third-party services",
+    list: [
+      "Fonts: this website loads a font from Google Fonts. When it does, your browser makes a request to Google's servers, which may receive technical information such as your IP address. Google's own privacy policy applies to that request.",
+      "Hosting: the company that hosts this website may keep standard server logs, such as IP address, date and time, and the pages requested, for security and reliability.",
+      "Form service: if connected, the provider of the contact form service processes the messages you submit.",
+    ],
+  },
+  {
+    heading: "Cookies and analytics",
+    text: [
+      "The website's own code does not set cookies and does not use analytics or advertising trackers. If this changes, we will update this policy and, where the law requires it, ask for your consent first. Third-party services listed above may use their own technologies.",
+    ],
+  },
+  {
+    heading: "Children",
+    text: [
+      "This website is intended for people preparing for work or study. It is not directed at children under 13, and we do not knowingly collect personal information from them.",
+    ],
+  },
+  {
+    heading: "Your choices",
+    text: [
+      `Because we hold very little information about visitors, there is usually nothing to access or delete. If you sent us a message and want it deleted, or if you have a privacy question, ${CONTACT_SENTENCE}. Depending on where you live, you may have additional rights under local law.`,
+    ],
+  },
+  {
+    heading: "Changes to this policy",
+    text: [
+      `We may update this policy as the website changes. The date at the top of this page shows when it was last updated (${SITE.legalUpdated}).`,
+    ],
+  },
+];
+
+const TERMS = [
+  {
+    heading: "Acceptance of these terms",
+    text: [
+      `By using ${SITE.name}, you agree to these terms. If you do not agree, please do not use the website.`,
+    ],
+  },
+  {
+    heading: "Purpose of the website",
+    text: [
+      "The website provides general interview preparation material for education and practice. It does not guarantee that you will receive an interview, a job offer, or any particular result.",
+    ],
+  },
+  {
+    heading: "Sample answers and practice feedback",
+    list: [
+      "Sample answers are examples. Their details are made up, and they are meant to show structure, not to be copied. Always replace them with your own true experience.",
+      "The Practice Mode review is a rule-based checklist. It counts words and looks for patterns and keywords. It is not generated by an AI model, it is not a human expert's opinion, and it can be wrong or incomplete.",
+      "Career guides are general information and are not professional, legal, or financial advice. Adapt them to your situation, industry, and country.",
+    ],
+  },
+  {
+    heading: "Acceptable use",
+    list: [
+      "Do not use the website for anything unlawful, or in a way that disrupts it or other people's use of it.",
+      "Do not try to gain unauthorized access to the website or its hosting.",
+      "Do not present made-up sample stories as your own real experience in an actual interview. Be honest with employers.",
+    ],
+  },
+  {
+    heading: "Content and intellectual property",
+    text: [
+      "The text, design, and code of this website belong to the site operator or its licensors. You may use the content for your own personal, non-commercial preparation. Please do not copy or republish substantial parts of it without permission.",
+    ],
+  },
+  {
+    heading: "Third-party links and services",
+    text: [
+      "The website may link to or rely on third-party services. We do not control them and are not responsible for their content or practices.",
+    ],
+  },
+  {
+    heading: "Disclaimer of warranties",
+    text: [
+      "The website is provided 'as is' and 'as available', without promises that it will be error-free, uninterrupted, or suitable for your particular purpose.",
+    ],
+  },
+  {
+    heading: "Limitation of liability",
+    text: [
+      "To the fullest extent permitted by law, the site operator is not liable for any loss or damage arising from your use of, or inability to use, the website or from relying on its content. Nothing in these terms limits any rights that cannot be limited under the law that applies to you.",
+    ],
+  },
+  {
+    heading: "Changes and contact",
+    text: [
+      `We may change the website or these terms from time to time. Continued use after a change means you accept the updated terms. Last updated: ${SITE.legalUpdated}. For questions about these terms, ${CONTACT_SENTENCE}.`,
+    ],
+  },
+];
+
+const LEGAL_DOCS = {
+  privacy: { title: "Privacy Policy", sections: PRIVACY },
+  terms: { title: "Terms of Use", sections: TERMS },
+};
+
+/* =====================================================================
+   Helpers
+   ===================================================================== */
+const FILLERS = ["basically", "literally", "you know", "kind of", "sort of", "stuff", "um", "uh"];
+
+function countWords(text) {
+  const t = text.trim();
+  return t ? t.split(/\s+/).length : 0;
+}
+
+function formatSpoken(words) {
+  const seconds = Math.round((words / 130) * 60);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function scrollToId(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+}
+
+function guideReadMinutes(guide) {
+  const parts = [guide.summary];
+  guide.sections.forEach((s) => {
+    parts.push(s.heading);
+    if (s.text) parts.push(...s.text);
+    if (s.list) parts.push(...s.list);
+    if (s.quote) parts.push(s.quote);
+  });
+  return Math.max(1, Math.round(countWords(parts.join(" ")) / 200));
+}
+
+function setMeta(attr, key, content) {
+  let el = document.head.querySelector(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+/*
+  Rule-based review. It only counts words and looks for patterns and keywords.
+  It does not understand meaning, so the UI says so clearly.
+*/
+function reviewAnswer(text, question) {
+  const trimmed = text.trim();
+  const words = countWords(trimmed);
+
+  if (words === 0) return { status: "empty", words, text };
+  if (words < 15) return { status: "short", words, text };
+
+  const lower = trimmed.toLowerCase();
+  const firstPerson = (trimmed.match(/\b(i|my|me|mine|myself)\b/gi) || []).length;
+  const fillerCount = FILLERS.reduce(
+    (n, f) => n + (lower.match(new RegExp(`\\b${f}\\b`, "g")) || []).length,
+    0
+  );
+
+  const keywordResults = question.keywords.map((k) => {
+    const options = k.split("|");
+    return { label: options[0], found: options.some((o) => lower.includes(o)) };
+  });
+  const found = keywordResults.filter((k) => k.found);
+  const missing = keywordResults.filter((k) => !k.found);
+  const needed = Math.ceil(question.keywords.length / 2);
+
+  const lengthOk = words >= 50 && words <= 220;
+  const hasSpecific = /\d|percent|double|triple|half/i.test(trimmed);
+  const hasResult =
+    /\b(result|resulted|improv\w*|increas\w*|reduc\w*|decreas\w*|sav(?:ed|ing|es)|learn\w*|deliver\w*|achiev\w*|outcome|success\w*|lifted|grew|faster|fixed|resolved|launched)\b/i.test(
+      trimmed
+    );
+
+  const checks = [
+    {
+      label: "Length is in a good range (50 to 220 words)",
+      pass: lengthOk,
+      tip:
+        words < 50
+          ? "Your answer is on the short side. Add one specific example or detail."
+          : "Your answer is long. Trim it to the points that matter most, about 30 to 90 seconds spoken.",
+    },
+    {
+      label: "Speaks about your own role",
+      pass: firstPerson >= 3,
+      tip: "Use “I” to show what you personally did, not only what the team did.",
+    },
+    {
+      label: "Includes a specific detail or number",
+      pass: hasSpecific,
+      tip: "Add a number, timeframe, or concrete detail, such as “saved 3 hours a week.”",
+    },
+    {
+      label: "Mentions a result or what you learned",
+      pass: hasResult,
+      tip: "End with the outcome: what changed, what improved, or what you learned.",
+    },
+    {
+      label: `Covers key ideas (${found.length} of ${keywordResults.length})`,
+      pass: found.length >= needed,
+      tip: "Try to include more of the ideas listed below, if they fit your real experience.",
+    },
+    {
+      label: "Avoids filler words",
+      pass: fillerCount <= 2,
+      tip: "Replace filler such as “basically” or “stuff” with specific wording.",
+    },
+  ];
+
+  const passed = checks.filter((c) => c.pass).length;
+  const score = Math.round((passed / checks.length) * 100);
+
+  let summary;
+  if (score >= 83) {
+    summary =
+      "Your answer ticks most boxes on the checklist. Practice saying it out loud and make the details your own.";
+  } else if (score >= 50) {
+    summary = "A good base. Work on the checklist items marked below, then review again.";
+  } else {
+    summary =
+      "The basics need more work. Use the tips below and compare your answer with the sample.";
+  }
+
+  return { status: "ok", words, text, checks, score, summary, found, missing };
+}
+
+/* =====================================================================
+   Shared UI
+   ===================================================================== */
+function useActiveSection(ids) {
+  const [active, setActive] = useState(ids[0]);
+  useEffect(() => {
+    const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
+    if (!("IntersectionObserver" in window) || els.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) setActive(e.target.id);
+        });
+      },
+      { rootMargin: "-40% 0px -55% 0px" }
+    );
+    els.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [ids]);
+  return active;
+}
+
+function Navbar({ active }) {
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const close = () => setOpen(false);
+
+  return (
+    <header className={`nav ${scrolled || open ? "nav--solid" : ""}`}>
+      <div className="container nav-inner">
+        <BrandLogo size={38} />
+        <nav className="nav-links" aria-label="Primary">
+          {NAV_LINKS.map((l) => (
+            <a
+              key={l.id}
+              href={`#${l.id}`}
+              className={active === l.id ? "is-active" : ""}
+              aria-current={active === l.id ? "true" : undefined}
+            >
+              {l.label}
+            </a>
+          ))}
+        </nav>
+        <a href="#practice" className="btn btn-primary nav-cta">
+          Get Started
+        </a>
+        <button
+          type="button"
+          className="menu-btn"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls="mobile-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+        >
+          <Icon name={open ? "close" : "menu"} size={22} />
+        </button>
+      </div>
+      <div id="mobile-menu" className={`mobile-menu ${open ? "is-open" : ""}`}>
+        <nav aria-label="Mobile">
+          {NAV_LINKS.map((l) => (
+            <a key={l.id} href={`#${l.id}`} onClick={close} tabIndex={open ? 0 : -1}>
+              {l.label}
+            </a>
+          ))}
+          <a href="#practice" className="btn btn-primary" onClick={close} tabIndex={open ? 0 : -1}>
+            Get Started
+          </a>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+function ScoreRing({ value, size = 120, label }) {
+  const gid = `ring-${useId().replace(/:/g, "")}`;
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="ring" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 120 120" role="img" aria-label={`${label}: ${value} out of 100`}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#a78bfa" />
+            <stop offset="100%" stopColor="#38bdf8" />
+          </linearGradient>
+        </defs>
+        <circle cx="60" cy="60" r={r} className="ring-track" />
+        <circle
+          cx="60"
+          cy="60"
+          r={r}
+          className="ring-fill"
+          stroke={`url(#${gid})`}
+          style={{ strokeDasharray: c, strokeDashoffset: c - (c * value) / 100 }}
+        />
+      </svg>
+      <div className="ring-text">
+        <strong>{value}</strong>
+        <span>/ 100</span>
+      </div>
+    </div>
+  );
+}
+
+/* Reusable accessible tab list (used by questions, guides, and legal) */
+function TabList({ items, activeId, onChange, label, prefix }) {
+  const onKeyDown = (e) => {
+    const i = items.findIndex((t) => t.id === activeId);
+    let next = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (i + 1) % items.length;
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (i - 1 + items.length) % items.length;
+    if (e.key === "Home") next = 0;
+    if (e.key === "End") next = items.length - 1;
+    if (next !== null) {
+      e.preventDefault();
+      onChange(items[next].id);
+      document.getElementById(`${prefix}-${items[next].id}`)?.focus();
+    }
+  };
+
+  return (
+    <div className="tabs" role="tablist" aria-label={label} onKeyDown={onKeyDown}>
+      {items.map(({ id, label: text, icon }) => (
+        <button
+          key={id}
+          id={`${prefix}-${id}`}
+          role="tab"
+          type="button"
+          aria-selected={activeId === id}
+          tabIndex={activeId === id ? 0 : -1}
+          className={`tab ${activeId === id ? "is-active" : ""}`}
+          onClick={() => onChange(id)}
+        >
+          {icon && <Icon name={icon} size={18} />}
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* Renders guide and legal sections */
+function DocSections({ sections }) {
+  return (
+    <>
+      {sections.map((s) => (
+        <section className="doc-section" key={s.heading}>
+          <h4>{s.heading}</h4>
+          {s.text && s.text.map((p) => <p key={p}>{p}</p>)}
+          {s.list &&
+            (s.ordered ? (
+              <ol className="doc-list is-ordered">
+                {s.list.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ol>
+            ) : (
+              <ul className="doc-list">
+                {s.list.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ))}
+          {s.quote && <blockquote className="doc-quote">{s.quote}</blockquote>}
+        </section>
+      ))}
+    </>
+  );
+}
+
+/* =====================================================================
+   Home
+   ===================================================================== */
+function Hero() {
+  const [selected, setSelected] = useState(0);
+  return (
+    <section id="home" className="hero">
+      <div className="container hero-grid">
+        <div className="hero-copy">
+          <p className="pill">
+            <span className="pill-dot" aria-hidden="true" /> Free interview preparation
+          </p>
+          <h1>
+            Land Your Dream Job <span className="grad-text">With Confidence.</span>
+          </h1>
+          <p className="lead">
+            Practice real interview questions, discover better answers, and prepare for your next
+            opportunity.
+          </p>
+          <div className="cta-row">
+            <a href="#practice" className="btn btn-primary btn-lg">
+              Start Practicing <Icon name="arrow" size={18} />
+            </a>
+            <a href="#questions" className="btn btn-ghost btn-lg">
+              Explore Questions
+            </a>
+          </div>
+          <ul className="hero-points">
+            <li><Icon name="check" size={16} /> {TOTAL_QUESTIONS} practice questions</li>
+            <li><Icon name="check" size={16} /> Works on any device</li>
+            <li><Icon name="check" size={16} /> No sign-up needed</li>
+          </ul>
+        </div>
+
+        <figure className="dash" aria-label="Preview of the practice dashboard">
+          <div className="dash-glow" aria-hidden="true" />
+          <div className="dash-card">
+            <div className="dash-top">
+              <div className="dash-dots" aria-hidden="true"><i /><i /><i /></div>
+              <span className="dash-title">Practice session</span>
+              <span className="badge">Sample preview</span>
+            </div>
+
+            <div className="dash-body">
+              <div className="dash-questions">
+                <p className="dash-label">Today's questions</p>
+                <ul>
+                  {HERO_QUESTIONS.map((item, i) => (
+                    <li key={item.q}>
+                      <button
+                        type="button"
+                        className={`dash-q ${selected === i ? "is-selected" : ""}`}
+                        onClick={() => setSelected(i)}
+                        aria-pressed={selected === i}
+                      >
+                        <span className="dash-q-icon" aria-hidden="true">
+                          {i < selected ? <Icon name="check" size={14} /> : i + 1}
+                        </span>
+                        <span className="dash-q-text">
+                          {item.q}
+                          <small>{item.tag}</small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="progress">
+                  <div className="progress-head">
+                    <span>Progress</span>
+                    <span>{selected + 1} of 3</span>
+                  </div>
+                  <div
+                    className="bar"
+                    role="progressbar"
+                    aria-label="Practice progress"
+                    aria-valuemin={0}
+                    aria-valuemax={3}
+                    aria-valuenow={selected + 1}
+                  >
+                    <span style={{ width: `${((selected + 1) / 3) * 100}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="dash-score">
+                <p className="dash-label">Checklist score</p>
+                <ScoreRing value={82} label="Example checklist score" />
+                <p className="dash-note">Example only. Your own score appears in Practice.</p>
+              </div>
+            </div>
+          </div>
+          <div className="float-chip chip-a" aria-hidden="true">
+            <Icon name="clock" size={14} /> 1:20 answer time
+          </div>
+          <div className="float-chip chip-b" aria-hidden="true">
+            <Icon name="check" size={14} /> Clear structure
+          </div>
+        </figure>
+      </div>
+    </section>
+  );
+}
+
+function Features() {
+  return (
+    <section id="features" className="section" aria-labelledby="features-title">
+      <div className="container">
+        <header className="section-head">
+          <h2 id="features-title">Everything you need to prepare, in one place</h2>
+          <p>Simple tools that help you practice with purpose instead of guessing.</p>
+        </header>
+        <div className="feature-grid">
+          {FEATURES.map(({ icon, title, text, href, cta }) => (
+            <article className="card feature" key={title}>
+              <span className="icon-box" aria-hidden="true">
+                <Icon name={icon} size={22} />
+              </span>
+              <h3>{title}</h3>
+              <p>{text}</p>
+              <a href={href} className="feature-link">
+                {cta} <Icon name="arrow" size={16} />
+              </a>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================================
+   Interview Questions
+   ===================================================================== */
+function QuestionExplorer({ onPractice }) {
+  const [activeId, setActiveId] = useState(CATEGORIES[0].id);
+  const active = useMemo(() => CATEGORIES.find((c) => c.id === activeId), [activeId]);
+  const tabs = CATEGORIES.map((c) => ({ id: c.id, label: c.name, icon: c.icon }));
+
+  return (
+    <section id="questions" className="section section-alt" aria-labelledby="questions-title">
+      <div className="container">
+        <header className="section-head">
+          <h2 id="questions-title">Interview questions by job</h2>
+          <p>Pick a role, open a question to see a sample answer, or practice it right away.</p>
+        </header>
+
+        <TabList
+          items={tabs}
+          activeId={activeId}
+          onChange={setActiveId}
+          label="Job categories"
+          prefix="cat"
+        />
+
+        <div
+          id="category-panel"
+          role="tabpanel"
+          aria-labelledby={`cat-${active.id}`}
+          className="panel card"
+          key={active.id}
+        >
+          <div className="panel-head">
+            <h3>{active.name} interview questions</h3>
+            <p>{active.blurb}</p>
+          </div>
+          <ul className="q-list">
+            {active.questions.map((item, i) => (
+              <li key={item.q}>
+                <details className="q-item">
+                  <summary>
+                    <span>{item.q}</span>
+                    <Icon name="chevron" size={18} />
+                  </summary>
+                  <div className="q-body">
+                    <p className="q-label">Sample answer</p>
+                    <p className="q-answer">{item.answer}</p>
+                    <p className="q-tip">
+                      <strong>How to approach it: </strong>
+                      {item.tip}
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => onPractice(active.id, i)}
+                    >
+                      Practice this question <Icon name="arrow" size={16} />
+                    </button>
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ul>
+          <p className="panel-note">
+            Sample answers are examples with made-up details. Replace them with your own real
+            experience.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================================
+   Practice Mode
+   ===================================================================== */
+function SelectField({ id, label, value, onChange, children }) {
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <span className="select-wrap">
+        <select id={id} value={value} onChange={onChange}>
+          {children}
+        </select>
+        <Icon name="chevron" size={18} />
+      </span>
+    </div>
+  );
+}
+
+function SampleAnswer({ question }) {
+  return (
+    <div className="sample">
+      <h4>Sample answer</h4>
+      <p>{question.answer}</p>
+      <p className="sample-note">
+        This is only an example. Rewrite it using your own experience and details.
+      </p>
+    </div>
+  );
+}
+
+function Feedback({ review, stale }) {
+  if (!review) {
+    return (
+      <div className="fb-card">
+        <p className="fb-placeholder">
+          <strong>Your review will appear here.</strong> Write your answer, then press Review My
+          Answer. You will get a simple checklist based on length, structure, and keywords.
+        </p>
+      </div>
+    );
+  }
+
+  if (review.status === "empty") {
+    return (
+      <div className="alert" role="alert">
+        <Icon name="alert" size={18} />
+        <p>Your answer is empty. Type at least a few sentences, then press Review My Answer.</p>
+      </div>
+    );
+  }
+
+  if (review.status === "short") {
+    return (
+      <div className="fb-card">
+        <div className="alert" role="alert">
+          <Icon name="alert" size={18} />
+          <p>
+            Your answer is very short ({review.words} {review.words === 1 ? "word" : "words"}).
+            Interviewers usually expect a few sentences with a real example.
+          </p>
+        </div>
+        <ul className="tip-list">
+          <li><Icon name="check" size={16} /> Start with one direct sentence that answers the question.</li>
+          <li><Icon name="check" size={16} /> Add a specific example from work, school, or a project.</li>
+          <li><Icon name="check" size={16} /> End with the result or what you learned.</li>
+        </ul>
+        <p className="fb-note">
+          <strong>How this works:</strong> a short answer is detected by counting words. Compare
+          with the sample answer below.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fb-card">
+      <div className="fb-head">
+        <ScoreRing value={review.score} size={92} label="Checklist score" />
+        <div>
+          <h4>Checklist score</h4>
+          <p>{review.summary}</p>
+        </div>
+      </div>
+
+      <ul className="fb-checks">
+        {review.checks.map((c) => (
+          <li key={c.label} className={c.pass ? "is-pass" : "is-fail"}>
+            <span className="fb-icon">
+              <Icon name={c.pass ? "check" : "alert"} size={14} />
+            </span>
+            <div>
+              <strong>{c.label}</strong>
+              {!c.pass && <p>{c.tip}</p>}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="ideas">
+        {review.found.length > 0 && (
+          <div>
+            <h5>Ideas you covered</h5>
+            <div className="chips">
+              {review.found.map((k) => (
+                <span key={k.label} className="chip chip-yes">{k.label}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {review.missing.length > 0 && (
+          <div>
+            <h5>Ideas you could add, if they fit your experience</h5>
+            <div className="chips">
+              {review.missing.map((k) => (
+                <span key={k.label} className="chip chip-no">{k.label}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {stale && (
+        <p className="fb-stale">
+          You edited your answer. Press Review My Answer again to update this review.
+        </p>
+      )}
+
+      <p className="fb-note">
+        <strong>How this works:</strong> this review is rule-based and runs on your device. It
+        counts words and looks for patterns and keywords. It is not AI, and it cannot judge how
+        good or accurate your answer really is.
+      </p>
+    </div>
+  );
+}
+
+function PracticeWorkspace({ question, draft, onDraft, onTryAnother }) {
+  const [review, setReview] = useState(null);
+  const [showSample, setShowSample] = useState(false);
+  const feedbackRef = useRef(null);
+
+  const words = countWords(draft);
+  const stale = review !== null && review.text !== draft;
+
+  useEffect(() => {
+    if (review && feedbackRef.current) {
+      feedbackRef.current.scrollIntoView({
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+        block: "nearest",
+      });
+    }
+  }, [review]);
+
+  const handleReview = () => {
+    const result = reviewAnswer(draft, question);
+    setReview(result);
+    if (result.status !== "empty") setShowSample(true);
+  };
+
+  const handleClear = () => {
+    onDraft("");
+    setReview(null);
+  };
+
+  return (
+    <div className="practice-cols">
+      <div className="answer-box">
+        <h4>Your answer</h4>
+        <label htmlFor="draft" className="sr-only">
+          Type your answer to the selected question
+        </label>
+        <textarea
+          id="draft"
+          rows={8}
+          value={draft}
+          onChange={(e) => onDraft(e.target.value)}
+          placeholder="Type your answer here. Aim for 50 to 220 words, with one real example and a result."
+        />
+        <div className="stats">
+          <span>{words} {words === 1 ? "word" : "words"}</span>
+          <span>
+            <Icon name="clock" size={14} /> About {formatSpoken(words)} spoken
+          </span>
+        </div>
+
+        <div className="actions">
+          <button type="button" className="btn btn-primary" onClick={handleReview}>
+            <Icon name="clipboard" size={18} /> Review My Answer
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setShowSample((s) => !s)}
+            aria-expanded={showSample}
+          >
+            <Icon name="eye" size={18} /> {showSample ? "Hide Sample Answer" : "Show Sample Answer"}
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={onTryAnother}>
+            <Icon name="refresh" size={18} /> Try Another Question
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={handleClear}>
+            <Icon name="close" size={18} /> Clear Answer
+          </button>
+        </div>
+      </div>
+
+      <div className="feedback" ref={feedbackRef} aria-live="polite">
+        <h4 className="feedback-title">Feedback</h4>
+        <Feedback review={review} stale={stale} />
+        {showSample && <SampleAnswer question={question} />}
+      </div>
+    </div>
+  );
+}
+
+function Practice({ selection, onSelect }) {
+  const [drafts, setDrafts] = useState({});
+
+  const category = CATEGORIES.find((c) => c.id === selection.catId) || CATEGORIES[0];
+  const question = category.questions[selection.qIndex] || category.questions[0];
+  const draftKey = `${category.id}-${selection.qIndex}`;
+
+  const handleCategory = (e) => onSelect(e.target.value, 0);
+  const handleQuestion = (e) => onSelect(category.id, Number(e.target.value));
+
+  const handleTryAnother = () => {
+    const others = category.questions.map((_, i) => i).filter((i) => i !== selection.qIndex);
+    const next = others[Math.floor(Math.random() * others.length)];
+    onSelect(category.id, next);
+  };
+
+  const setDraft = (value) => setDrafts((d) => ({ ...d, [draftKey]: value }));
+
+  return (
+    <section id="practice" className="section" aria-labelledby="practice-title">
+      <div className="container">
+        <header className="section-head">
+          <h2 id="practice-title">Practice mode</h2>
+          <p>
+            Choose a question, write your own answer, and get a simple checklist review. Nothing
+            you type leaves your device.
+          </p>
+        </header>
+
+        <div className="card practice-shell">
+          <div className="picker">
+            <SelectField
+              id="practice-category"
+              label="Job category"
+              value={category.id}
+              onChange={handleCategory}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </SelectField>
+            <SelectField
+              id="practice-question"
+              label="Question"
+              value={selection.qIndex}
+              onChange={handleQuestion}
+            >
+              {category.questions.map((item, i) => (
+                <option key={item.q} value={i}>{item.q}</option>
+              ))}
+            </SelectField>
+          </div>
+
+          <div className="practice-q">
+            <span className="badge badge-soft">{category.name}</span>
+            <h3>{question.q}</h3>
+            <p>
+              <strong>Tip: </strong>
+              {question.tip}
+            </p>
+          </div>
+
+          <PracticeWorkspace
+            key={draftKey}
+            question={question}
+            draft={drafts[draftKey] || ""}
+            onDraft={setDraft}
+            onTryAnother={handleTryAnother}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================================
+   Career Guides
+   ===================================================================== */
+function Guides() {
+  const [activeId, setActiveId] = useState(GUIDE_LIBRARY[0].id);
+  const [openIndex, setOpenIndex] = useState(0);
+  const guide = GUIDE_LIBRARY.find((g) => g.id === activeId) || GUIDE_LIBRARY[0];
+  const tabs = GUIDE_LIBRARY.map((g) => ({ id: g.id, label: g.tab }));
+
+  return (
+    <section id="guides" className="section section-alt" aria-labelledby="guides-title">
+      <div className="container">
+        <header className="section-head">
+          <h2 id="guides-title">Career guides</h2>
+          <p>Practical, plain-language advice for each stage of your job search. Pick a guide to read.</p>
+        </header>
+
+        <TabList
+          items={tabs}
+          activeId={activeId}
+          onChange={setActiveId}
+          label="Career guides"
+          prefix="guide"
+        />
+
+        <article
+          id="guide-panel"
+          role="tabpanel"
+          aria-labelledby={`guide-${guide.id}`}
+          className="panel card doc"
+          key={guide.id}
+        >
+          <header className="doc-head">
+            <h3>{guide.title}</h3>
+            <span className="badge badge-soft">{guideReadMinutes(guide)} min read</span>
+          </header>
+          <p className="doc-summary">{guide.summary}</p>
+          <DocSections sections={guide.sections} />
+          <p className="panel-note">
+            General guidance for job seekers. Adapt it to your situation, industry, and country.
+          </p>
+        </article>
+
+        <div className="quick">
+          <h3>Quick checklists</h3>
+          <div className="accordion">
+            {QUICK_CHECKLISTS.map((g, i) => {
+              const open = openIndex === i;
+              return (
+                <div className={`acc-item card ${open ? "is-open" : ""}`} key={g.title}>
+                  <h4>
+                    <button
+                      type="button"
+                      className="acc-btn"
+                      aria-expanded={open}
+                      aria-controls={`quick-${i}`}
+                      onClick={() => setOpenIndex(open ? -1 : i)}
+                    >
+                      {g.title}
+                      <Icon name="chevron" size={20} />
+                    </button>
+                  </h4>
+                  <div id={`quick-${i}`} className="acc-panel" hidden={!open}>
+                    <ul>
+                      {g.points.map((p) => (
+                        <li key={p}>
+                          <Icon name="check" size={16} />
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CtaBand() {
+  return (
+    <section className="section cta-section" aria-labelledby="cta-title">
+      <div className="container">
+        <div className="cta-band">
+          <h2 id="cta-title">Your next interview starts with one answer.</h2>
+          <p>Pick a question, write your response, and refine it until you feel ready.</p>
+          <a href="#practice" className="btn btn-primary btn-lg">
+            Start Practicing <Icon name="arrow" size={18} />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================================
+   About
+   ===================================================================== */
+const ABOUT_STEPS = [
+  {
+    title: "Choose a role and a question",
+    text: "Pick one of five job categories and a question you want to prepare for.",
+  },
+  {
+    title: "Write your own answer",
+    text: "Use your real experience. The sample answer is there to show structure, not to copy.",
+  },
+  {
+    title: "Review and improve",
+    text: "Run the checklist review, read the tips, and edit your answer until it feels natural.",
+  },
+];
+
+function About() {
+  return (
+    <section id="about" className="section" aria-labelledby="about-title">
+      <div className="container">
+        <header className="section-head">
+          <h2 id="about-title">About {SITE.name}</h2>
+          <p>A free, simple place to practice interview answers before the real conversation.</p>
+        </header>
+
+        <div className="about-grid">
+          <div className="about-copy">
+            <p>
+              {SITE.name} is an interview preparation website for job seekers. It was built to give
+              people a calm, low-pressure place to practice answering common questions, so the
+              real interview feels more familiar.
+            </p>
+            <p>
+              You can browse questions for five popular roles, read sample answers, write your own
+              answers in Practice Mode, and read practical career guides. There are no accounts to
+              create, and nothing you type in Practice Mode is sent to a server.
+            </p>
+            <p className="about-honest">
+              <strong>A note on the name.</strong> The practice review is rule-based. It counts
+              words and looks for common structure and keywords. It is not generated by an AI
+              model, and it cannot judge whether your answer is truly good. Treat it as a
+              checklist, and ask a friend, mentor, or career adviser for a real opinion.
+            </p>
+          </div>
+
+          <div className="about-cards">
+            <div className="card about-card">
+              <h3>What you can do here</h3>
+              <ul className="check-list">
+                <li><Icon name="check" size={16} /> Browse {TOTAL_QUESTIONS} questions across five roles</li>
+                <li><Icon name="check" size={16} /> Read sample answers and how to approach each question</li>
+                <li><Icon name="check" size={16} /> Practice writing and reviewing your own answers</li>
+                <li><Icon name="check" size={16} /> Read guides for before, during, and after interviews</li>
+              </ul>
+            </div>
+            <div className="card about-card">
+              <h3>What this site does not do</h3>
+              <ul className="check-list is-warn">
+                <li><Icon name="info" size={16} /> It does not guarantee interviews or job offers</li>
+                <li><Icon name="info" size={16} /> It does not replace professional career advice</li>
+                <li><Icon name="info" size={16} /> It does not save or upload the answers you write</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <h3 className="steps-title">How practice works</h3>
+        <ol className="steps">
+          {ABOUT_STEPS.map((s, i) => (
+            <li className="card step" key={s.title}>
+              <span className="step-num" aria-hidden="true">{i + 1}</span>
+              <div>
+                <h4>{s.title}</h4>
+                <p>{s.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================================
+   Contact
+   ===================================================================== */
+const TOPICS = [
+  "General question",
+  "Feedback on a question or answer",
+  "Report a problem",
+  "Business or partnership",
+];
+
+const EMPTY_FORM = { name: "", email: "", topic: TOPICS[0], message: "", website: "" };
+
+function validateContact(v) {
+  const e = {};
+  if (!v.name.trim()) e.name = "Enter your name.";
+  if (!v.email.trim()) e.email = "Enter your email address.";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim()))
+    e.email = "Enter a valid email address, like name@example.com.";
+  if (v.message.trim().length < 10)
+    e.message = "Write at least 10 characters so we can understand your message.";
+  return e;
+}
+
+function composeMessage(v) {
+  return `Topic: ${v.topic}\nName: ${v.name.trim()}\nEmail: ${v.email.trim()}\n\n${v.message.trim()}`;
+}
+
+function Contact() {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [errors, setErrors] = useState({});
+  const [status, setStatus] = useState("idle");
+  const [copied, setCopied] = useState(false);
+  const connected = Boolean(SITE.contactEndpoint);
+
+  const update = (key) => (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, [key]: value }));
+    setErrors((er) => ({ ...er, [key]: undefined }));
+    setStatus((s) => (s === "sending" ? s : "idle"));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (form.website) return; // hidden spam trap field
+    const found = validateContact(form);
+    setErrors(found);
+    const firstKey = ["name", "email", "message"].find((k) => found[k]);
+    if (firstKey) {
+      document.getElementById(`contact-${firstKey}`)?.focus();
+      return;
+    }
+    if (!connected) {
+      setStatus("unconfigured");
+      return;
+    }
+    setStatus("sending");
+    try {
+      const res = await fetch(SITE.contactEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          topic: form.topic,
+          message: form.message.trim(),
+        }),
+      });
+      if (res.ok) {
+        setStatus("sent");
+        setForm(EMPTY_FORM);
+      } else {
+        setStatus("failed");
+      }
+    } catch {
+      setStatus("failed");
+    }
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(composeMessage(form));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const mailtoHref = SITE.contactEmail
+    ? `mailto:${SITE.contactEmail}?subject=${encodeURIComponent(
+        `${SITE.name}: ${form.topic}`
+      )}&body=${encodeURIComponent(composeMessage(form))}`
+    : "";
+
+  return (
+    <section id="contact" className="section section-alt" aria-labelledby="contact-title">
+      <div className="container">
+        <header className="section-head">
+          <h2 id="contact-title">Contact us</h2>
+          <p>Questions, feedback, or a problem to report? Write to us below.</p>
+        </header>
+
+        <div className="contact-grid">
+          <div className="contact-info">
+            <div className="card about-card">
+              <h3>Good reasons to get in touch</h3>
+              <ul className="check-list">
+                <li><Icon name="check" size={16} /> Report a mistake or a broken feature</li>
+                <li><Icon name="check" size={16} /> Suggest a question or a guide topic</li>
+                <li><Icon name="check" size={16} /> Share feedback on how practice could be better</li>
+                <li><Icon name="check" size={16} /> Ask about partnerships</li>
+              </ul>
+            </div>
+            <div className="card about-card">
+              <h3>Before you write</h3>
+              <p className="muted small">
+                Please do not include passwords or sensitive personal information. Read how
+                messages are handled in our <a className="text-link" href="#privacy">Privacy Policy</a>.
+              </p>
+              {SITE.contactEmail && (
+                <p className="contact-email">
+                  <Icon name="mail" size={16} /> {SITE.contactEmail}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="card contact-card">
+            {!connected && (
+              <div className="notice notice-info">
+                <Icon name="info" size={18} />
+                <p>
+                  This contact form is not connected to an email or form service yet, so it
+                  cannot deliver messages automatically. You can prepare your message and copy it
+                  {SITE.contactEmail ? " or open it in your email app." : "."}
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} noValidate aria-label="Contact form">
+              <div className="form-grid">
+                <div className="field">
+                  <label htmlFor="contact-name">Your name</label>
+                  <input
+                    id="contact-name"
+                    className="input"
+                    type="text"
+                    name="name"
+                    autoComplete="name"
+                    value={form.name}
+                    onChange={update("name")}
+                    aria-invalid={Boolean(errors.name)}
+                    aria-describedby={errors.name ? "err-name" : undefined}
+                  />
+                  {errors.name && <p id="err-name" className="field-error">{errors.name}</p>}
+                </div>
+                <div className="field">
+                  <label htmlFor="contact-email">Email address</label>
+                  <input
+                    id="contact-email"
+                    className="input"
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    value={form.email}
+                    onChange={update("email")}
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? "err-email" : undefined}
+                  />
+                  {errors.email && <p id="err-email" className="field-error">{errors.email}</p>}
+                </div>
+              </div>
+
+              <SelectField
+                id="contact-topic"
+                label="Topic"
+                value={form.topic}
+                onChange={update("topic")}
+              >
+                {TOPICS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </SelectField>
+
+              <div className="field">
+                <label htmlFor="contact-message">Message</label>
+                <textarea
+                  id="contact-message"
+                  name="message"
+                  rows={6}
+                  value={form.message}
+                  onChange={update("message")}
+                  aria-invalid={Boolean(errors.message)}
+                  aria-describedby={errors.message ? "err-message" : undefined}
+                />
+                {errors.message && <p id="err-message" className="field-error">{errors.message}</p>}
+              </div>
+
+              <div className="hp" aria-hidden="true">
+                <label htmlFor="contact-website">Leave this field empty</label>
+                <input
+                  id="contact-website"
+                  type="text"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={form.website}
+                  onChange={update("website")}
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary contact-submit" disabled={status === "sending"}>
+                {status === "sending" ? "Sending..." : connected ? "Send message" : "Prepare message"}
+                <Icon name="arrow" size={18} />
+              </button>
+            </form>
+
+            <div className="form-status" role="status" aria-live="polite">
+              {status === "sent" && (
+                <div className="notice notice-ok">
+                  <Icon name="check" size={18} />
+                  <p>The form service accepted your message. Thank you for getting in touch.</p>
+                </div>
+              )}
+              {status === "failed" && (
+                <div className="notice notice-warn">
+                  <Icon name="alert" size={18} />
+                  <p>
+                    Your message could not be sent. Check your connection and try again
+                    {SITE.contactEmail ? `, or email ${SITE.contactEmail} directly.` : "."}
+                  </p>
+                </div>
+              )}
+              {status === "unconfigured" && (
+                <div className="unsent">
+                  <div className="notice notice-warn">
+                    <Icon name="alert" size={18} />
+                    <p>
+                      <strong>Your message has not been sent.</strong> This website has no
+                      delivery service connected, so nothing was transmitted. Copy your message
+                      below and send it another way.
+                    </p>
+                  </div>
+                  <label htmlFor="contact-copy" className="sr-only">Your prepared message</label>
+                  <textarea id="contact-copy" readOnly rows={7} value={composeMessage(form)} />
+                  <div className="actions">
+                    <button type="button" className="btn btn-ghost" onClick={handleCopy}>
+                      <Icon name="copy" size={18} /> {copied ? "Copied" : "Copy message"}
+                    </button>
+                    {SITE.contactEmail && (
+                      <a className="btn btn-primary" href={mailtoHref}>
+                        <Icon name="mail" size={18} /> Open in email app
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================================
+   Legal: Privacy Policy and Terms of Use
+   ===================================================================== */
+function Legal() {
+  const [docId, setDocId] = useState("privacy");
+  const doc = LEGAL_DOCS[docId];
+  const tabs = Object.keys(LEGAL_DOCS).map((id) => ({ id, label: LEGAL_DOCS[id].title }));
+
+  useEffect(() => {
+    const sync = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (hash === "privacy" || hash === "terms") {
+        setDocId(hash);
+        requestAnimationFrame(() => scrollToId("legal"));
+      }
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+
+  const choose = (id) => {
+    setDocId(id);
+    window.history.replaceState(null, "", `#${id}`);
+  };
+
+  return (
+    <section id="legal" className="section" aria-labelledby="legal-title">
+      <div className="container">
+        <header className="section-head">
+          <h2 id="legal-title">Privacy Policy and Terms of Use</h2>
+          <p>Plain-language information about how this website works and how to use it.</p>
+        </header>
+
+        <TabList
+          items={tabs}
+          activeId={docId}
+          onChange={choose}
+          label="Legal documents"
+          prefix="legal-tab"
+        />
+
+        <article
+          id={docId}
+          role="tabpanel"
+          aria-labelledby={`legal-tab-${docId}`}
+          className="panel card doc legal-panel"
+          key={docId}
+        >
+          <header className="doc-head">
+            <h3>{doc.title}</h3>
+            <span className="badge badge-soft">Updated {SITE.legalUpdated}</span>
+          </header>
+          <DocSections sections={doc.sections} />
+        </article>
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================================
+   Footer
+   ===================================================================== */
+function Footer() {
+  return (
+    <footer className="footer">
+      <div className="container footer-grid">
+        <div className="footer-brand">
+          <BrandLogo size={40} />
+          <p>Free tools to help you prepare for interviews with clarity and confidence.</p>
+        </div>
+        <nav aria-label="Explore">
+          <h2 className="footer-title">Explore</h2>
+          <ul>
+            <li><a href="#home">Home</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#questions">Interview Questions</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Prepare">
+          <h2 className="footer-title">Prepare</h2>
+          <ul>
+            <li><a href="#practice">Practice</a></li>
+            <li><a href="#guides">Career Guides</a></li>
+            <li><a href="#questions">Job Categories</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Company and legal">
+          <h2 className="footer-title">Company</h2>
+          <ul>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+            <li><a href="#privacy">Privacy Policy</a></li>
+            <li><a href="#terms">Terms of Use</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div className="container footer-bottom">
+        <p className="disclaimer">
+          <strong>Disclaimer:</strong> Sample answers are examples only. Always personalize your
+          answers with your own experience, skills, and the specific role you are applying for.
+          Practice feedback is rule-based and is not AI-generated advice. This website does not
+          guarantee interviews or job offers.
+        </p>
+        <p className="copy">© {new Date().getFullYear()} {SITE.name}. All rights reserved.</p>
+      </div>
+    </footer>
+  );
+}
+
+/* =====================================================================
+   App
+   ===================================================================== */
+export default function App() {
+  const ids = useMemo(
+    () => ["home", "features", "questions", "practice", "guides", "about", "contact", "legal"],
+    []
+  );
+  const active = useActiveSection(ids);
+  const navActive = active === "features" ? "home" : active === "legal" ? "" : active;
+
+  const [selection, setSelection] = useState({ catId: CATEGORIES[0].id, qIndex: 0 });
+
+  useEffect(() => {
+    document.title = SEO.title;
+    document.documentElement.lang = "en";
+    setMeta("name", "description", SEO.description);
+    setMeta("name", "theme-color", "#070b1f");
+    setMeta("property", "og:title", SEO.title);
+    setMeta("property", "og:description", SEO.description);
+    setMeta("property", "og:type", "website");
+    setMeta("name", "twitter:card", "summary");
+    setFavicon();
+  }, []);
+
+  const handlePractice = (catId, qIndex) => {
+    setSelection({ catId, qIndex });
+    requestAnimationFrame(() => scrollToId("practice"));
+  };
+
+  return (
+    <div className="app">
+      <a href="#main" className="skip-link">Skip to content</a>
+      <Navbar active={navActive} />
+      <main id="main">
+        <Hero />
+        <Features />
+        <QuestionExplorer onPractice={handlePractice} />
+        <Practice
+          selection={selection}
+          onSelect={(catId, qIndex) => setSelection({ catId, qIndex })}
+        />
+        <Guides />
+        <CtaBand />
+        <About />
+        <Contact />
+        <Legal />
+      </main>
+      <Footer />
+    </div>
+  );
+}

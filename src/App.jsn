@@ -1,0 +1,756 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  Check,
+  ChevronDown,
+  ClipboardList,
+  Clock,
+  Code,
+  Headphones,
+  Megaphone,
+  Menu,
+  MessageSquareText,
+  Mic,
+  Sparkles,
+  Target,
+  X,
+} from "lucide-react";
+import "./App.css";
+
+const NAV_LINKS = [
+  { id: "home", label: "Home" },
+  { id: "questions", label: "Interview Questions" },
+  { id: "practice", label: "Practice" },
+  { id: "guides", label: "Career Guides" },
+];
+
+const FEATURES = [
+  {
+    icon: Target,
+    title: "Job-Specific Questions",
+    text: "Browse questions grouped by role, so you prepare for the interview you actually have.",
+  },
+  {
+    icon: MessageSquareText,
+    title: "Answer Examples",
+    text: "See how a strong answer is structured, then rewrite it in your own words and experience.",
+  },
+  {
+    icon: Mic,
+    title: "Mock Interview Practice",
+    text: "Answer out loud or in writing, track your word count and speaking time, and score yourself with a checklist.",
+  },
+  {
+    icon: BookOpen,
+    title: "Career Guides",
+    text: "Short, practical guides for before, during, and after the interview.",
+  },
+];
+
+const CATEGORIES = [
+  {
+    id: "software",
+    name: "Software Engineer",
+    icon: Code,
+    blurb: "Technical depth, collaboration, and how you solve problems.",
+    questions: [
+      {
+        q: "Describe a difficult bug you fixed. How did you find the cause?",
+        tip: "Walk through your debugging steps in order: reproduce, isolate, fix, prevent. Name the tools you used.",
+      },
+      {
+        q: "How do you decide between a quick solution and a clean one?",
+        tip: "Show you weigh deadlines, risk, and maintenance cost. Give one real example of each choice.",
+      },
+      {
+        q: "Tell me about a time you disagreed with a teammate on a technical decision.",
+        tip: "Focus on how you listened, shared evidence, and reached a decision, not on who was right.",
+      },
+    ],
+  },
+  {
+    id: "service",
+    name: "Customer Service",
+    icon: Headphones,
+    blurb: "Empathy, patience, and clear communication under pressure.",
+    questions: [
+      {
+        q: "How do you handle a customer who is angry and upset?",
+        tip: "Acknowledge the feeling, clarify the problem, offer a next step, and confirm they are satisfied.",
+      },
+      {
+        q: "Tell me about a time you went beyond what was expected.",
+        tip: "Pick a specific case with a measurable result, such as a saved account or a positive review.",
+      },
+      {
+        q: "What would you do if you did not know the answer to a customer's question?",
+        tip: "Be honest, explain how you find answers, and describe how you follow up.",
+      },
+    ],
+  },
+  {
+    id: "marketing",
+    name: "Marketing",
+    icon: Megaphone,
+    blurb: "Creativity backed by results, audience insight, and testing.",
+    questions: [
+      {
+        q: "Describe a campaign you are proud of. What was your role?",
+        tip: "State the goal, your part, and the result with numbers if you have them.",
+      },
+      {
+        q: "How do you decide which channels to focus on?",
+        tip: "Explain how you use audience data, budget, and past results to prioritize.",
+      },
+      {
+        q: "How do you measure whether a campaign worked?",
+        tip: "Tie metrics to the goal: reach for awareness, conversion rate for sales, retention for loyalty.",
+      },
+    ],
+  },
+  {
+    id: "data",
+    name: "Data Analyst",
+    icon: BarChart3,
+    blurb: "Accuracy, curiosity, and turning numbers into decisions.",
+    questions: [
+      {
+        q: "Walk me through an analysis that changed a decision.",
+        tip: "Cover the question, the data, your method, and what the team did differently afterward.",
+      },
+      {
+        q: "How do you handle messy or missing data?",
+        tip: "Describe checks you run, how you decide to fill or remove values, and how you document it.",
+      },
+      {
+        q: "How would you explain a complex result to a non-technical manager?",
+        tip: "Lead with the conclusion, use one simple chart, and avoid jargon.",
+      },
+    ],
+  },
+  {
+    id: "pm",
+    name: "Project Manager",
+    icon: ClipboardList,
+    blurb: "Planning, prioritizing, and keeping people aligned.",
+    questions: [
+      {
+        q: "Tell me about a project that was falling behind. What did you do?",
+        tip: "Show how you found the cause, reset expectations early, and adjusted scope or resources.",
+      },
+      {
+        q: "How do you prioritize when everything seems urgent?",
+        tip: "Describe a clear method, such as impact versus effort, and how you involve stakeholders.",
+      },
+      {
+        q: "How do you keep stakeholders informed?",
+        tip: "Mention cadence, format, and how you share bad news early.",
+      },
+    ],
+  },
+];
+
+const HERO_QUESTIONS = [
+  { q: "Tell me about yourself", tag: "Behavioral" },
+  { q: "Why do you want this role?", tag: "Motivation" },
+  { q: "Describe a time you handled conflict", tag: "Behavioral" },
+];
+
+const CHECKLIST = [
+  "I covered my present role or current focus",
+  "I mentioned relevant past experience",
+  "I explained why this role is my next step",
+  "My answer is under about 90 seconds",
+];
+
+const GUIDES = [
+  {
+    title: "Before the interview",
+    points: [
+      "Re-read the job description and highlight the top three skills it asks for.",
+      "Prepare two or three stories from your experience that match those skills.",
+      "Research the company's product, customers, and recent news.",
+      "Prepare two questions to ask the interviewer.",
+    ],
+  },
+  {
+    title: "During the interview",
+    points: [
+      "Answer the question directly first, then add detail.",
+      "Use the STAR method for stories: Situation, Task, Action, Result.",
+      "It is fine to pause for a moment before answering.",
+      "Ask for clarification if a question is unclear.",
+    ],
+  },
+  {
+    title: "After the interview",
+    points: [
+      "Send a short thank-you message within 24 hours.",
+      "Mention one specific topic from the conversation.",
+      "Write down the questions you were asked while they are fresh.",
+      "Note what to improve before the next interview.",
+    ],
+  },
+];
+
+const EXAMPLE_ANSWER = [
+  {
+    label: "Present",
+    text: "I'm a marketing coordinator with three years of experience running email and social campaigns for a growing online retailer. Recently I led a refresh of our welcome email series.",
+  },
+  {
+    label: "Past",
+    text: "Before that, I studied communications and worked on a small team where I learned to move quickly, test ideas, and use data to improve results. The welcome series lifted first-purchase rates by 12%.",
+  },
+  {
+    label: "Future",
+    text: "I'm looking for a role where I can own larger campaigns and work closely with product and sales. Your focus on customer education is exactly the kind of work I want to grow in.",
+  },
+];
+
+function useActiveSection(ids) {
+  const [active, setActive] = useState(ids[0]);
+  useEffect(() => {
+    const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
+    if (!("IntersectionObserver" in window) || els.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) setActive(e.target.id);
+        });
+      },
+      { rootMargin: "-40% 0px -55% 0px" }
+    );
+    els.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [ids]);
+  return active;
+}
+
+function Logo() {
+  return (
+    <a href="#home" className="logo" aria-label="InterviewAce AI home">
+      <span className="logo-mark" aria-hidden="true">
+        <Sparkles size={18} />
+      </span>
+      <span>
+        InterviewAce <span className="logo-ai">AI</span>
+      </span>
+    </a>
+  );
+}
+
+function Navbar({ active }) {
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const close = () => setOpen(false);
+
+  return (
+    <header className={`nav ${scrolled || open ? "nav--solid" : ""}`}>
+      <div className="container nav-inner">
+        <Logo />
+        <nav className="nav-links" aria-label="Primary">
+          {NAV_LINKS.map((l) => (
+            <a
+              key={l.id}
+              href={`#${l.id}`}
+              className={active === l.id ? "is-active" : ""}
+              aria-current={active === l.id ? "true" : undefined}
+            >
+              {l.label}
+            </a>
+          ))}
+        </nav>
+        <a href="#practice" className="btn btn-primary nav-cta">
+          Get Started
+        </a>
+        <button
+          className="menu-btn"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls="mobile-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+        >
+          {open ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </div>
+      <div id="mobile-menu" className={`mobile-menu ${open ? "is-open" : ""}`}>
+        <nav aria-label="Mobile">
+          {NAV_LINKS.map((l) => (
+            <a key={l.id} href={`#${l.id}`} onClick={close} tabIndex={open ? 0 : -1}>
+              {l.label}
+            </a>
+          ))}
+          <a href="#practice" className="btn btn-primary" onClick={close} tabIndex={open ? 0 : -1}>
+            Get Started
+          </a>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+function ScoreRing({ value, size = 120, label }) {
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="ring" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 120 120" role="img" aria-label={`${label}: ${value} out of 100`}>
+        <defs>
+          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#a78bfa" />
+            <stop offset="100%" stopColor="#38bdf8" />
+          </linearGradient>
+        </defs>
+        <circle cx="60" cy="60" r={r} className="ring-track" />
+        <circle
+          cx="60"
+          cy="60"
+          r={r}
+          className="ring-fill"
+          style={{ strokeDasharray: c, strokeDashoffset: c - (c * value) / 100 }}
+        />
+      </svg>
+      <div className="ring-text">
+        <strong>{value}</strong>
+        <span>/ 100</span>
+      </div>
+    </div>
+  );
+}
+
+function Hero() {
+  const [selected, setSelected] = useState(0);
+  return (
+    <section id="home" className="hero">
+      <div className="container hero-grid">
+        <div className="hero-copy">
+          <p className="pill">
+            <span className="pill-dot" aria-hidden="true" /> Free interview preparation
+          </p>
+          <h1>
+            Land Your Dream Job <span className="grad-text">With Confidence.</span>
+          </h1>
+          <p className="lead">
+            Practice real interview questions, discover better answers, and prepare for your next
+            opportunity.
+          </p>
+          <div className="cta-row">
+            <a href="#practice" className="btn btn-primary btn-lg">
+              Start Practicing <ArrowRight size={18} aria-hidden="true" />
+            </a>
+            <a href="#questions" className="btn btn-ghost btn-lg">
+              Explore Questions
+            </a>
+          </div>
+          <ul className="hero-points">
+            <li><Check size={16} aria-hidden="true" /> 5 popular job categories</li>
+            <li><Check size={16} aria-hidden="true" /> Works on any device</li>
+            <li><Check size={16} aria-hidden="true" /> No sign-up needed</li>
+          </ul>
+        </div>
+
+        <figure className="dash" aria-label="Preview of the practice dashboard">
+          <div className="dash-glow" aria-hidden="true" />
+          <div className="dash-card">
+            <div className="dash-top">
+              <div className="dash-dots" aria-hidden="true"><i /><i /><i /></div>
+              <span className="dash-title">Practice session</span>
+              <span className="badge">Sample preview</span>
+            </div>
+
+            <div className="dash-body">
+              <div className="dash-questions">
+                <p className="dash-label">Today's questions</p>
+                <ul>
+                  {HERO_QUESTIONS.map((item, i) => (
+                    <li key={item.q}>
+                      <button
+                        type="button"
+                        className={`dash-q ${selected === i ? "is-selected" : ""}`}
+                        onClick={() => setSelected(i)}
+                        aria-pressed={selected === i}
+                      >
+                        <span className="dash-q-icon" aria-hidden="true">
+                          {i < selected ? <Check size={14} /> : i + 1}
+                        </span>
+                        <span className="dash-q-text">
+                          {item.q}
+                          <small>{item.tag}</small>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="progress" aria-label={`Progress: question ${selected + 1} of 3`}>
+                  <div className="progress-head">
+                    <span>Progress</span>
+                    <span>{selected + 1} of 3</span>
+                  </div>
+                  <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={3} aria-valuenow={selected + 1}>
+                    <span style={{ width: `${((selected + 1) / 3) * 100}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="dash-score">
+                <p className="dash-label">Practice score</p>
+                <ScoreRing value={82} label="Example practice score" />
+                <p className="dash-note">Example result from the checklist below</p>
+              </div>
+            </div>
+          </div>
+          <div className="float-chip chip-a" aria-hidden="true">
+            <Clock size={14} /> 1:20 answer time
+          </div>
+          <div className="float-chip chip-b" aria-hidden="true">
+            <Check size={14} /> Clear structure
+          </div>
+        </figure>
+      </div>
+    </section>
+  );
+}
+
+function Features() {
+  return (
+    <section id="features" className="section">
+      <div className="container">
+        <header className="section-head">
+          <h2>Everything you need to prepare, in one place</h2>
+          <p>Simple tools that help you practice with purpose instead of guessing.</p>
+        </header>
+        <div className="feature-grid">
+          {FEATURES.map(({ icon: Icon, title, text }) => (
+            <article className="card feature" key={title}>
+              <span className="icon-box" aria-hidden="true">
+                <Icon size={22} />
+              </span>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Categories() {
+  const [activeId, setActiveId] = useState(CATEGORIES[0].id);
+  const active = useMemo(() => CATEGORIES.find((c) => c.id === activeId), [activeId]);
+
+  const onKeyDown = (e) => {
+    const i = CATEGORIES.findIndex((c) => c.id === activeId);
+    let next = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (i + 1) % CATEGORIES.length;
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (i - 1 + CATEGORIES.length) % CATEGORIES.length;
+    if (next !== null) {
+      e.preventDefault();
+      setActiveId(CATEGORIES[next].id);
+      document.getElementById(`tab-${CATEGORIES[next].id}`)?.focus();
+    }
+  };
+
+  return (
+    <section id="questions" className="section section-alt">
+      <div className="container">
+        <header className="section-head">
+          <h2>Popular job categories</h2>
+          <p>Pick a role to see common questions and how to approach them.</p>
+        </header>
+
+        <div className="tabs" role="tablist" aria-label="Job categories" onKeyDown={onKeyDown}>
+          {CATEGORIES.map(({ id, name, icon: Icon }) => (
+            <button
+              key={id}
+              id={`tab-${id}`}
+              role="tab"
+              type="button"
+              aria-selected={activeId === id}
+              aria-controls="category-panel"
+              tabIndex={activeId === id ? 0 : -1}
+              className={`tab ${activeId === id ? "is-active" : ""}`}
+              onClick={() => setActiveId(id)}
+            >
+              <Icon size={18} aria-hidden="true" />
+              {name}
+            </button>
+          ))}
+        </div>
+
+        <div
+          id="category-panel"
+          role="tabpanel"
+          aria-labelledby={`tab-${active.id}`}
+          className="panel card"
+          key={active.id}
+        >
+          <div className="panel-head">
+            <h3>{active.name} interview questions</h3>
+            <p>{active.blurb}</p>
+          </div>
+          <ul className="q-list">
+            {active.questions.map(({ q, tip }) => (
+              <li key={q}>
+                <details className="q-item">
+                  <summary>
+                    <span>{q}</span>
+                    <ChevronDown size={18} aria-hidden="true" />
+                  </summary>
+                  <p>
+                    <strong>How to approach it: </strong>
+                    {tip}
+                  </p>
+                </details>
+              </li>
+            ))}
+          </ul>
+          <a href="#practice" className="btn btn-ghost panel-cta">
+            Practice an answer <ArrowRight size={16} aria-hidden="true" />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Practice() {
+  const [showExample, setShowExample] = useState(true);
+  const [draft, setDraft] = useState("");
+  const [checks, setChecks] = useState(CHECKLIST.map(() => false));
+
+  const words = draft.trim() ? draft.trim().split(/\s+/).length : 0;
+  const seconds = Math.round((words / 130) * 60);
+  const timeLabel = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  const score = Math.round((checks.filter(Boolean).length / CHECKLIST.length) * 100);
+
+  const toggle = (i) => setChecks((prev) => prev.map((v, idx) => (idx === i ? !v : v)));
+  const reset = () => {
+    setDraft("");
+    setChecks(CHECKLIST.map(() => false));
+  };
+
+  return (
+    <section id="practice" className="section">
+      <div className="container">
+        <header className="section-head">
+          <h2>Try a sample question</h2>
+          <p>Read the example, write your own answer, then score yourself with the checklist.</p>
+        </header>
+
+        <div className="practice-grid">
+          <article className="card example">
+            <p className="badge badge-soft">Behavioral · Most common</p>
+            <h3 className="big-q">"Tell me about yourself"</h3>
+            <p className="muted">
+              Use a simple Present, Past, Future structure and keep it to about a minute and a half.
+            </p>
+
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowExample((s) => !s)}
+              aria-expanded={showExample}
+              aria-controls="example-answer"
+            >
+              {showExample ? "Hide example answer" : "Show example answer"}
+            </button>
+
+            {showExample && (
+              <div id="example-answer" className="answer">
+                {EXAMPLE_ANSWER.map(({ label, text }) => (
+                  <div className="answer-step" key={label}>
+                    <span className="answer-label">{label}</span>
+                    <p>{text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="note">
+              This is a sample. Replace the details with your own experience so your answer sounds
+              like you.
+            </p>
+          </article>
+
+          <article className="card workspace">
+            <h3>Your practice answer</h3>
+            <label htmlFor="draft" className="sr-only">Write your answer</label>
+            <textarea
+              id="draft"
+              rows={7}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Type or speak your answer here, then edit it until it feels natural."
+            />
+            <div className="stats">
+              <span>{words} words</span>
+              <span><Clock size={14} aria-hidden="true" /> About {timeLabel} spoken</span>
+            </div>
+
+            <fieldset className="checklist">
+              <legend>Self-check</legend>
+              {CHECKLIST.map((item, i) => (
+                <label key={item} className={`check ${checks[i] ? "is-checked" : ""}`}>
+                  <input type="checkbox" checked={checks[i]} onChange={() => toggle(i)} />
+                  <span className="check-box" aria-hidden="true">
+                    {checks[i] && <Check size={14} />}
+                  </span>
+                  {item}
+                </label>
+              ))}
+            </fieldset>
+
+            <div className="score-row">
+              <ScoreRing value={score} size={84} label="Your self-check score" />
+              <div>
+                <p className="score-title">Your self-check score</p>
+                <p className="muted small">
+                  Based on the checklist you complete. It reflects your own review.
+                </p>
+              </div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={reset}>
+                Reset
+              </button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Guides() {
+  const [openIndex, setOpenIndex] = useState(0);
+  return (
+    <section id="guides" className="section section-alt">
+      <div className="container guides">
+        <header className="section-head left">
+          <h2>Career guides</h2>
+          <p>Quick checklists for every stage of the interview process.</p>
+        </header>
+        <div className="accordion">
+          {GUIDES.map((g, i) => {
+            const open = openIndex === i;
+            return (
+              <div className={`acc-item card ${open ? "is-open" : ""}`} key={g.title}>
+                <h3>
+                  <button
+                    type="button"
+                    className="acc-btn"
+                    aria-expanded={open}
+                    aria-controls={`guide-${i}`}
+                    onClick={() => setOpenIndex(open ? -1 : i)}
+                  >
+                    {g.title}
+                    <ChevronDown size={20} aria-hidden="true" />
+                  </button>
+                </h3>
+                <div id={`guide-${i}`} className="acc-panel" hidden={!open}>
+                  <ul>
+                    {g.points.map((p) => (
+                      <li key={p}>
+                        <Check size={16} aria-hidden="true" />
+                        {p}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CtaBand() {
+  return (
+    <section className="section cta-section" aria-labelledby="cta-title">
+      <div className="container">
+        <div className="cta-band">
+          <h2 id="cta-title">Your next interview starts with one answer.</h2>
+          <p>Pick a question, write your response, and refine it until you feel ready.</p>
+          <a href="#practice" className="btn btn-primary btn-lg">
+            Start Practicing <ArrowRight size={18} aria-hidden="true" />
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <div className="container footer-grid">
+        <div className="footer-brand">
+          <Logo />
+          <p>Free tools to help you prepare for interviews with clarity and confidence.</p>
+        </div>
+        <nav aria-label="Explore">
+          <h4>Explore</h4>
+          <ul>
+            <li><a href="#home">Home</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#questions">Interview Questions</a></li>
+          </ul>
+        </nav>
+        <nav aria-label="Prepare">
+          <h4>Prepare</h4>
+          <ul>
+            <li><a href="#practice">Practice</a></li>
+            <li><a href="#guides">Career Guides</a></li>
+            <li><a href="#questions">Job Categories</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div className="container footer-bottom">
+        <p className="disclaimer">
+          <strong>Disclaimer:</strong> Sample answers are examples only. Always personalize your
+          answers with your own experience, skills, and the specific role you are applying for.
+        </p>
+        <p className="copy">© {new Date().getFullYear()} InterviewAce AI. All rights reserved.</p>
+      </div>
+    </footer>
+  );
+}
+
+export default function App() {
+  const ids = useMemo(() => ["home", "features", "questions", "practice", "guides"], []);
+  const active = useActiveSection(ids);
+  const navActive = active === "features" ? "home" : active;
+
+  return (
+    <div className="app">
+      <a href="#main" className="skip-link">Skip to content</a>
+      <Navbar active={navActive} />
+      <main id="main">
+        <Hero />
+        <Features />
+        <Categories />
+        <Practice />
+        <Guides />
+        <CtaBand />
+      </main>
+      <Footer />
+    </div>
+  );
+}
